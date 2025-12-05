@@ -2,14 +2,14 @@ const express = require('express');
 const cors = require('cors');
 
 // Import database connection
-const db = require('./db/connection');
+const db = require('../db/connection');
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const questionRoutes = require('./routes/questions');
-const penTypeRoutes = require('./routes/pentype');
-const matchRoutes = require('./routes/match');
-const aiAnalysisRoutes = require('./routes/ai_analysis');
+const authRoutes = require('../routes/auth');
+const questionRoutes = require('../routes/questions');
+const penTypeRoutes = require('../routes/pentype');
+const matchRoutes = require('../routes/match');
+const aiAnalysisRoutes = require('../routes/ai_analysis');
 
 const app = express();
 

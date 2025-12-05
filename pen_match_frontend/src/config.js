@@ -1,3 +1,3 @@
 // src/config.js
-export const API_BASE = import.meta.env.VITE_API_URL || "https://penality-backend.vercel.app";
+export const API_BASE = "https://penality.onrender.com";
 console.log('Current API_BASE:', API_BASE);

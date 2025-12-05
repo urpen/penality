@@ -1,5 +1,5 @@
 // simple wrapper to call your backend at http://localhost:3000
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://penality.onrender.com'
 
 export async function register(username, password, email) {
   const res = await fetch(`${API_BASE}/register`, {

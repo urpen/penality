@@ -1,19 +1,19 @@
 import { API_BASE } from "./config";
 
-export async function sendCode(phone) {
+export async function sendCode(email) {
   const res = await fetch(`${API_BASE}/auth/send-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone })
+    body: JSON.stringify({ email })
   })
   return res.json()
 }
 
-export async function verifyLogin(phone, code) {
+export async function verifyLogin(email, code) {
   const res = await fetch(`${API_BASE}/auth/verify-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, code })
+    body: JSON.stringify({ email, code })
   })
   return res.json()
 }
@@ -65,3 +65,22 @@ export async function generateAIAnalysis(userId, mockPayment = true) {
   return res.json()
 }
 
+// Payment APIs
+export async function initiatePayment(userId, method) {
+  // method: 'wechat' or 'alipay'
+  const res = await fetch(`${API_BASE}/ai-analysis/${userId}/pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method })
+  })
+  return res.json()
+}
+
+export async function verifyPayment(userId, orderId) {
+  const res = await fetch(`${API_BASE}/ai-analysis/${userId}/verify-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId })
+  })
+  return res.json()
+}

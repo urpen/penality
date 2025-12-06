@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getPenType, getAIAnalysis, generateAIAnalysis } from '../api';
+import { getPenType, getAIAnalysis, initiatePayment, verifyPayment } from '../api';
 
 export default function Result() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // AI & Payment States
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiReport, setAiReport] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [step, setStep] = useState('offer'); // offer -> payment -> paid (loading) -> result
+  const [paymentInfo, setPaymentInfo] = useState(null); // { orderId, qrCode, paymentUrl }
+  const [paymentMethod, setPaymentMethod] = useState(''); // 'wechat' | 'alipay'
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     async function fetchResult() {
@@ -30,52 +35,56 @@ export default function Result() {
     fetchResult();
   }, [id]);
 
-  const handleUnlockAI = async () => {
-    // Check if already purchased
+  const handleUnlockClick = async () => {
+    setShowAIModal(true);
+    // Check if already exist
     try {
       const existing = await getAIAnalysis(id);
       if (existing.success && existing.report && existing.isPaid) {
-        // Already paid, show report directly
         setAiReport(existing.report);
-        setShowAIModal(true);
+        setStep('result');
         return;
       }
-    } catch (err) {
-      console.error(err);
-    }
-
-    // Show payment verification modal (not AI modal yet)
-    setShowAIModal(true);
+    } catch (e) { console.log(e); }
+    setStep('offer');
   };
 
-  const handlePaymentVerify = async (verificationCode) => {
-    setAiLoading(true);
-
+  const handleInitiatePayment = async (method) => {
+    setPaymentMethod(method);
+    setVerifying(true);
     try {
-      // In real app, verify payment code with backend
-      // For demo, accept any 6-digit code
-      if (verificationCode.length !== 6) {
-        alert('请输入6位验证码');
-        setAiLoading(false);
-        return;
-      }
-
-      // Generate report with payment flag
-      const res = await generateAIAnalysis(id, true); // true = paid
+      const res = await initiatePayment(id, method);
       if (res.success) {
-        setAiReport(res.report);
+        setPaymentInfo(res);
+        setStep('payment');
       } else {
-        alert('生成报告失败: ' + res.message);
-        setShowAIModal(false);
+        alert(res.message || '支付初始化失败');
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
       alert('网络错误');
-      setShowAIModal(false);
     } finally {
-      setAiLoading(false);
+      setVerifying(false);
     }
   };
+
+  const handleVerifyPayment = async () => {
+    if (!paymentInfo || !paymentInfo.orderId) return;
+    setVerifying(true);
+    try {
+      const res = await verifyPayment(id, paymentInfo.orderId);
+      if (res.success && res.status === 'PAID') {
+        setAiReport(res.report);
+        setStep('result');
+      } else {
+        alert(res.message || '支付尚未完成，请稍后再试');
+      }
+    } catch (e) {
+      alert('网络错误');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
 
   if (loading) return <div className="page-container" style={{ justifyContent: 'center', alignItems: 'center' }}>分析性格中...</div>;
   if (!result) return <div className="page-container">暂无结果</div>;
@@ -130,34 +139,38 @@ export default function Result() {
             </div>
           )}
 
-          {/* AI Deep Analysis Unlock Card */}
+          {/* AI Unlock Card */}
           <div style={{
             marginTop: '2rem',
-            padding: '1.5rem',
+            padding: '2rem',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '12px',
             color: 'white',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 10px 20px rgba(118, 75, 162, 0.2)'
           }}>
-            <h3 style={{ marginBottom: '0.5rem', color: 'white' }}>🤖 解锁 AI 深度分析</h3>
-            <p style={{ fontSize: '0.9rem', marginBottom: '1rem', opacity: 0.9 }}>
-              基于您的30道题答案，由国际心理学大师为您生成专属的深度分析报告
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'white' }}>🤖 解锁您的专属深度性格分析</h2>
+            <p style={{ fontSize: '1rem', marginBottom: '1.5rem', opacity: 0.9 }}>
+              一键生成1500字深度报告，包含：性格盲区、职业建议、情感模式解析。
             </p>
             <button
-              onClick={handleUnlockAI}
+              onClick={handleUnlockClick}
               style={{
-                background: 'white',
-                color: '#667eea',
+                background: '#ffd700',
+                color: '#333',
                 border: 'none',
-                padding: '0.8rem 2rem',
-                borderRadius: '8px',
-                fontSize: '1rem',
+                padding: '1rem 2.5rem',
+                borderRadius: '50px',
+                fontSize: '1.1rem',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s',
               }}
+              onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              立即解锁深度分析 💎
+              立刻解锁 (¥9.9) 💎
             </button>
           </div>
 
@@ -172,108 +185,70 @@ export default function Result() {
         </div>
       </div>
 
-      {/* AI Analysis Modal */}
+      {/* Modal */}
       {showAIModal && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '2rem'
-        }} onClick={() => { if (!aiLoading) setShowAIModal(false); }}>
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', zIndex: 1000,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem'
+        }} onClick={() => setShowAIModal(false)}>
           <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            maxWidth: '600px',
-            width: '100%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            padding: '2rem',
-            position: 'relative'
-          }} onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setShowAIModal(false)}
-              style={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'none',
-                border: 'none',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                color: '#999'
-              }}
-            >×</button>
+            background: 'white', borderRadius: '16px', padding: '2rem',
+            width: '100%', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto', position: 'relative'
+          }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: '10px', right: '15px', border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
 
-            {!aiReport && !aiLoading ? (
-              // Payment verification step
-              <div>
-                <h2 style={{ marginBottom: '1rem', color: '#667eea' }}>🔐 付费验证</h2>
-                <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-                  请输入支付验证码以解锁深度分析报告
-                </p>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const code = e.target.code.value;
-                  handlePaymentVerify(code);
-                }}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                      支付验证码
-                    </label>
-                    <input
-                      type="text"
-                      name="code"
-                      placeholder="请输入6位验证码"
-                      maxLength={6}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '0.8rem',
-                        fontSize: '1rem',
-                        border: '2px solid #ddd',
-                        borderRadius: '8px'
-                      }}
-                    />
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1.5rem' }}>
-                    💡 演示模式：输入任意6位数字即可解锁
-                  </div>
-                  <button
-                    type="submit"
-                    style={{
-                      width: '100%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '1rem',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    确认支付并解锁
+            {step === 'offer' && (
+              <div style={{ textAlign: 'center' }}>
+                <h2 style={{ color: '#333', marginBottom: '1rem' }}>升级您的体验</h2>
+                <div style={{ textAlign: 'left', background: '#f8f9fa', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.6', color: '#555' }}>
+                  <p>✅ <b>1500字+</b> 深度性格解析</p>
+                  <p>✅ <b>潜意识画像</b>：你未曾察觉的自己</p>
+                  <p>✅ <b>专属建议</b>：职场、人际、情感全方位指导</p>
+                  <p>✅ <b>永久保存</b>：随时回看</p>
+                </div>
+                <p style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>仅需 ¥9.9 <span style={{ fontSize: '0.9rem', color: '#999', textDecoration: 'line-through' }}>原价 ¥29.9</span></p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <button onClick={() => handleInitiatePayment('wechat')} disabled={verifying} style={{ background: '#07c160', color: 'white', border: 'none', padding: '0.8rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem' }}>
+                    微信支付
                   </button>
-                </form>
+                  <button onClick={() => handleInitiatePayment('alipay')} disabled={verifying} style={{ background: '#1677ff', color: 'white', border: 'none', padding: '0.8rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem' }}>
+                    支付宝
+                  </button>
+                </div>
               </div>
-            ) : aiLoading ? (
-              // Loading state
-              <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤖</div>
-                <p>国际心理学AI大师正在为您生成深度分析...</p>
+            )}
+
+            {step === 'payment' && paymentInfo && (
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ marginBottom: '1rem' }}>{paymentMethod === 'wechat' ? '微信' : '支付宝'}扫码支付</h3>
+                <div style={{ width: '200px', height: '200px', background: '#eee', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* In real app, render QR code here. For mock, just text */}
+                  <div style={{ padding: '10px' }}>
+                    {paymentInfo.qrCode || "模拟二维码"}
+                  </div>
+                </div>
+                <div style={{ color: '#666', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                  订单号: <br />{paymentInfo.orderId}
+                </div>
+                <button onClick={handleVerifyPayment} disabled={verifying} style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white', border: 'none', padding: '1rem 2rem', borderRadius: '50px',
+                  fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', width: '100%'
+                }}>
+                  {verifying ? '验证中...' : '我已完成支付'}
+                </button>
+                <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#999' }}>
+                  (模拟模式：点击按钮直接验证成功)
+                </div>
               </div>
-            ) : (
-              // Show report
+            )}
+
+            {step === 'result' && (
               <div>
-                <h2 style={{ marginBottom: '1.5rem', color: '#667eea' }}>AI 深度性格分析报告</h2>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', color: '#333' }}>
+                <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#667eea' }}>🔮 深度分析报告</h2>
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', color: '#333', fontSize: '1rem' }}>
                   {aiReport}
                 </div>
               </div>
@@ -281,6 +256,7 @@ export default function Result() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

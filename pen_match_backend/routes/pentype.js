@@ -64,7 +64,7 @@ router.get('/:userId', async (req, res) => {
 
         // Get pen type details
         const [penTypes] = await db.query(
-            'SELECT type_name, slogan, description, shadow_side, advice, characteristics FROM pen_types WHERE type_name = ?',
+            'SELECT name, type_name, slogan, core_persona, shadow_side, masters_advice, description FROM pen_types WHERE type_name = ?',
             [dominantPenType]
         );
 
@@ -86,12 +86,12 @@ router.get('/:userId', async (req, res) => {
         res.json({
             success: true,
             penType: {
-                name: penTypes[0].type_name,
+                type: penTypes[0].type_name,
+                name: penTypes[0].name || penTypes[0].type_name, // Use Chinese name if available
                 slogan: penTypes[0].slogan,
-                description: penTypes[0].description,
+                description: penTypes[0].core_persona || penTypes[0].description, // Use core_persona as main description
                 shadow_side: penTypes[0].shadow_side,
-                advice: penTypes[0].advice,
-                characteristics: penTypes[0].characteristics,
+                advice: penTypes[0].masters_advice,
                 distribution: penTypeCounts
             }
         });

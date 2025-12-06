@@ -9,8 +9,8 @@ async function createOrder(userId, amount, method) {
     return {
         success: true,
         orderId,
-        paymentUrl: `mock_payment_url://${method}/${orderId}`, // 模拟唤起支付的链接
-        qrCode: `mock_qr_code_content_for_${method}` // 模拟二维码内容
+        paymentUrl: `https://mock-payment-gateway.vercel.app/pay?method=${method}&orderId=${orderId}&amount=${amount}`, // Simulate a real gateway URL
+        qrCode: null // Remove qrCode as requested
     };
 }
 

@@ -57,6 +57,8 @@ export default function Result() {
       if (res.success) {
         setPaymentInfo(res);
         setStep('payment');
+        // Auto redirect if it's a real jump environment
+        // window.location.href = res.paymentUrl; 
       } else {
         alert(res.message || '支付初始化失败');
       }
@@ -222,25 +224,35 @@ export default function Result() {
 
             {step === 'payment' && paymentInfo && (
               <div style={{ textAlign: 'center' }}>
-                <h3 style={{ marginBottom: '1rem' }}>{paymentMethod === 'wechat' ? '微信' : '支付宝'}扫码支付</h3>
-                <div style={{ width: '200px', height: '200px', background: '#eee', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {/* In real app, render QR code here. For mock, just text */}
-                  <div style={{ padding: '10px' }}>
-                    {paymentInfo.qrCode || "模拟二维码"}
-                  </div>
-                </div>
-                <div style={{ color: '#666', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <h3 style={{ marginBottom: '1rem' }}>正在前往{paymentMethod === 'wechat' ? '微信' : '支付宝'}支付...</h3>
+
+                <div style={{ marginBottom: '2rem', color: '#666', fontSize: '0.9rem' }}>
                   订单号: <br />{paymentInfo.orderId}
                 </div>
-                <button onClick={handleVerifyPayment} disabled={verifying} style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white', border: 'none', padding: '1rem 2rem', borderRadius: '50px',
-                  fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', width: '100%'
-                }}>
-                  {verifying ? '验证中...' : '我已完成支付'}
+
+                <button onClick={() => window.location.href = paymentInfo.paymentUrl}
+                  style={{
+                    background: '#07c160',
+                    color: 'white', border: 'none', padding: '1rem 2rem', borderRadius: '50px',
+                    fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', width: '100%',
+                    marginBottom: '1rem'
+                  }}>
+                  🔗 点击跳转支付
                 </button>
+
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
+                  <p style={{ marginBottom: '1rem' }}>支付完成后：</p>
+                  <button onClick={handleVerifyPayment} disabled={verifying} style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white', border: 'none', padding: '1rem 2rem', borderRadius: '50px',
+                    fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', width: '100%'
+                  }}>
+                    {verifying ? '验证中...' : '我已完成支付'}
+                  </button>
+                </div>
+
                 <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#999' }}>
-                  (模拟模式：点击按钮直接验证成功)
+                  (模拟模式：点击“跳转”只是模拟，实际请直接点击“我已完成支付”)
                 </div>
               </div>
             )}

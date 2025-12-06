@@ -32,17 +32,28 @@ export default function Questions() {
   }, []);
 
   const handleAnswer = async (selectedOption, penType) => {
-    // 移除 submitting 状态检查，因为现在只是本地操作，非常快
-    // if (submitting) return; 
-    // setSubmitting(true);
-
     const currentQuestion = questions[currentIndex];
 
-    // 无论是否登录，都先暂存答案到本地状态
-    const newAnswers = [...guestAnswers, {
-      question_id: currentQuestion.id,
-      selected_option: selectedOption
-    }];
+    // 暂存答案到本地状态
+    // 如果已经回答过这道题（比如退回来），需要更新答案而不是追加
+    let newAnswers = [...guestAnswers];
+    // 检查是否已经存在该题答案
+    const existingIndex = newAnswers.findIndex(a => a.question_id === currentQuestion.id);
+
+    if (existingIndex >= 0) {
+      // 更新
+      newAnswers[existingIndex] = {
+        question_id: currentQuestion.id,
+        selected_option: selectedOption
+      };
+    } else {
+      // 追加
+      newAnswers.push({
+        question_id: currentQuestion.id,
+        selected_option: selectedOption
+      });
+    }
+
     setGuestAnswers(newAnswers);
 
     // 如果是最后一题
@@ -57,7 +68,8 @@ export default function Questions() {
           if (res.success) {
             const resultRes = await getPenType(userId);
             if (resultRes.success) {
-              localStorage.setItem('penType', resultRes.penType.name);
+              const typeName = resultRes.penType.name || resultRes.penType; // Handle string or object
+              localStorage.setItem('penType', typeName);
               navigate(`/result/${userId}`);
             } else {
               alert('计算结果失败');
@@ -79,6 +91,12 @@ export default function Questions() {
     } else {
       // 不是最后一题，直接下一题
       setCurrentIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
     }
   };
 
@@ -153,6 +171,15 @@ export default function Questions() {
               解锁完整报告 (手机号登录)
             </button>
           </div>
+
+          {/* Allow going back to modify? */}
+          <button
+            className="btn-secondary"
+            onClick={() => setShowAuthPrompt(false)}
+            style={{ marginTop: '1rem' }}
+          >
+            返回修改
+          </button>
         </div>
       </div>
     );
@@ -160,11 +187,15 @@ export default function Questions() {
 
   const currentQuestion = questions[currentIndex];
 
-  // 安全检查：如果没有当前问题，返回加载状态
+  // 安全检查
   if (!currentQuestion) {
     return <div className="page-container" style={{ justifyContent: 'center', alignItems: 'center' }}>加载中...</div>;
   }
 
+  // Progress logic
+  // "你的进度条一直随着题目的大小而在相应的变长变短" - 
+  // Standard implementation: width = (currentIndex + 1) / total * 100%
+  // When going back, currentIndex decreases, so width decreases. This is "变长变短".
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
   return (
@@ -178,45 +209,40 @@ export default function Questions() {
 
       <div className="quiz-container">
         <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+          <div className="progress-fill" style={{ width: `${progress}%`, transition: 'width 0.3s ease-in-out' }}></div>
         </div>
 
         <div className="question-card">
           <h2 className="question-text">{currentQuestion.question_text}</h2>
 
           <div className="options-grid">
-            <button
-              className="option-btn"
-              onClick={() => handleAnswer('A', currentQuestion.pen_type_a)}
-              disabled={submitting}
-            >
+            <button className="option-btn" onClick={() => handleAnswer('A', currentQuestion.pen_type_a)} disabled={submitting}>
               A. {currentQuestion.option_a}
             </button>
-
-            <button
-              className="option-btn"
-              onClick={() => handleAnswer('B', currentQuestion.pen_type_b)}
-              disabled={submitting}
-            >
+            <button className="option-btn" onClick={() => handleAnswer('B', currentQuestion.pen_type_b)} disabled={submitting}>
               B. {currentQuestion.option_b}
             </button>
-
-            <button
-              className="option-btn"
-              onClick={() => handleAnswer('C', currentQuestion.pen_type_c)}
-              disabled={submitting}
-            >
+            <button className="option-btn" onClick={() => handleAnswer('C', currentQuestion.pen_type_c)} disabled={submitting}>
               C. {currentQuestion.option_c}
             </button>
-
-            <button
-              className="option-btn"
-              onClick={() => handleAnswer('D', currentQuestion.pen_type_d)}
-              disabled={submitting}
-            >
+            <button className="option-btn" onClick={() => handleAnswer('D', currentQuestion.pen_type_d)} disabled={submitting}>
               D. {currentQuestion.option_d}
             </button>
           </div>
+
+          {/* Previous Button */}
+          {currentIndex > 0 && (
+            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+              <button
+                onClick={handlePrevious}
+                className="btn-secondary"
+                style={{ fontSize: '0.9rem', padding: '0.5rem 1.5rem' }}
+              >
+                ← 上一题
+              </button>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

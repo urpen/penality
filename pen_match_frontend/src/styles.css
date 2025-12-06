@@ -63,10 +63,157 @@ body::after {
   }
 }
 
-/* 容器样式：手写风格边框 */
-.question-card,
-.pen-type-card,
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 导航栏 */
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: var(--card-bg);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.logo {
+  font-size: 1.8rem;
+  font-weight: normal;
+  font-family: var(--font-calligraphy);
+  color: var(--primary-color);
+  letter-spacing: 2px;
+}
+
+.links a {
+  margin-left: 1.5rem;
+  text-decoration: none;
+  color: var(--text-color);
+  transition: color 0.3s;
+  font-weight: 500;
+}
+
+/* 认证卡片 (登录/注册) */
 .auth-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(4px);
+  padding: 2.5rem;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  /* Organic */
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 400px;
+  margin: 2rem auto;
+}
+
+.auth-title {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: var(--primary-color);
+  font-family: var(--font-calligraphy);
+  font-size: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  font-family: var(--font-serif);
+}
+
+.form-group input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 0.8rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  font-family: var(--font-serif);
+}
+
+.btn-primary:hover {
+  background-color: #34495e;
+}
+
+.btn-primary:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: #fdecea;
+  color: #e74c3c;
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.auth-footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* 题目页面 */
+.quiz-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  transition: width 0.5s ease;
+  /* Add ink texture to the fill */
+  background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.1) 75%, transparent 75%, transparent);
+  background-size: 20px 20px;
+}
+
+.question-card {
   background: var(--card-bg);
   backdrop-filter: blur(4px);
   padding: 3rem;
@@ -91,7 +238,11 @@ body::after {
   font-family: var(--font-serif);
   font-weight: 600;
   text-align: center;
-  /* Center align question for better balance */
+}
+
+.options-grid {
+  display: grid;
+  gap: 1.2rem;
 }
 
 /* 选项按钮：水墨晕染动画 */
@@ -101,8 +252,6 @@ body::after {
   text-align: left;
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(44, 62, 80, 0.1);
-  border-radius: 2px;
-  /* Slight jagged feel helps, or organic */
   /* Or use organic radius here too */
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 
@@ -141,10 +290,24 @@ body::after {
   color: #fff;
   border-color: var(--primary-color);
   border-radius: 15px 225px 5px 25px / 225px 15px 225px 15px;
-  /* Slight shape shift on active */
 }
 
-/* ... */
+/* 结果页面 */
+.result-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.pen-type-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(4px);
+  padding: 3rem;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+}
 
 .pen-type-title {
   font-size: 3rem;
@@ -184,6 +347,7 @@ body::after {
   cursor: pointer;
   text-decoration: none;
   transition: all 0.3s;
+  font-family: var(--font-serif);
 }
 
 .btn-secondary:hover {

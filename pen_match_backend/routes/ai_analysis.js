@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/connection');
+const { createOrder, verifyPayment } = require('../utils/payment');
 
 // Mock AI analysis function (replace with actual AI API call)
 async function generateAIAnalysis(userId) {
@@ -115,57 +116,82 @@ router.get('/:userId', async (req, res) => {
     }
 });
 
-// Generate AI analysis report (mock payment for now)
-router.post('/:userId/generate', async (req, res) => {
+// Initiate payment for AI analysis
+router.post('/:userId/pay', async (req, res) => {
     try {
         const userId = req.params.userId;
-        const { mockPayment } = req.body; // For demo purposes
+        const { method } = req.body; // 'wechat' or 'alipay'
 
-        // Check if user exists
-        const [users] = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
-        if (users.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: '用户不存在'
-            });
+        if (!['wechat', 'alipay'].includes(method)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment method' });
         }
 
-        // Check if report already exists
-        const [existingReports] = await db.query(
-            'SELECT id FROM ai_reports WHERE user_id = ?',
-            [userId]
-        );
-
-        if (existingReports.length > 0) {
-            return res.json({
-                success: true,
-                message: '报告已存在',
-                alreadyGenerated: true
-            });
-        }
-
-        // Generate AI analysis
-        const reportContent = await generateAIAnalysis(userId);
-
-        // Save report to database
-        await db.query(
-            `INSERT INTO ai_reports (user_id, report_content, is_paid, paid_at) 
-             VALUES (?, ?, ?, ?)`,
-            [userId, reportContent, mockPayment ? 1 : 0, mockPayment ? new Date() : null]
-        );
+        // Create order (amount could be fixed, e.g., 9.9)
+        const order = await createOrder(userId, 9.9, method);
 
         res.json({
             success: true,
-            message: '报告生成成功',
-            report: reportContent
+            orderId: order.orderId,
+            paymentUrl: order.paymentUrl,
+            qrCode: order.qrCode
         });
 
     } catch (error) {
-        console.error('Generate AI analysis error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message || '生成报告失败'
-        });
+        console.error('Payment init error:', error);
+        res.status(500).json({ success: false, message: '支付初始化失败' });
+    }
+});
+
+// Verify payment and generate report
+router.post('/:userId/verify-payment', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const { orderId } = req.body;
+
+        // Verify payment status
+        const paymentRes = await verifyPayment(orderId);
+
+        if (paymentRes.success && paymentRes.status === 'PAID') {
+
+            // Check if report already exists first
+            const [existing] = await db.query('SELECT id FROM ai_reports WHERE user_id = ?', [userId]);
+
+            let reportContent;
+            if (existing.length === 0) {
+                // Generate new report
+                reportContent = await generateAIAnalysis(userId);
+                await db.query(
+                    `INSERT INTO ai_reports (user_id, report_content, is_paid, paid_at) 
+                     VALUES (?, ?, 1, NOW())`,
+                    [userId, reportContent]
+                );
+            } else {
+                // Determine what to do if paid again or retrieving? 
+                // Usually just update is_paid if it wasn't
+                await db.query('UPDATE ai_reports SET is_paid = 1, paid_at = NOW() WHERE user_id = ?', [userId]);
+                // Re-fetch or generate? Let's assume re-generate or fetch existing
+                const [r] = await db.query('SELECT report_content FROM ai_reports WHERE user_id = ?', [userId]);
+                if (r[0].report_content) {
+                    reportContent = r[0].report_content;
+                } else {
+                    reportContent = await generateAIAnalysis(userId);
+                    await db.query('UPDATE ai_reports SET report_content = ? WHERE user_id = ?', [reportContent, userId]);
+                }
+            }
+
+            res.json({
+                success: true,
+                status: 'PAID',
+                report: reportContent
+            });
+
+        } else {
+            res.json({ success: false, status: 'PENDING', message: '支付尚未完成' });
+        }
+
+    } catch (error) {
+        console.error('Payment verify error:', error);
+        res.status(500).json({ success: false, message: '支付验证失败' });
     }
 });
 

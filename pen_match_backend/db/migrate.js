@@ -10,7 +10,11 @@ async function migrate() {
         // Split SQL by semicolon to get individual statements
         // Note: This is a simple split and might break if semicolons are in strings, 
         // but for this seed file it should be fine.
+        // Remove comments and prepare statements
         const statements = sql
+            .split('\n')
+            .filter(line => !line.trim().startsWith('--') && !line.trim().startsWith('/*'))
+            .join(' ')
             .split(';')
             .map(s => s.trim())
             .filter(s => s.length > 0);

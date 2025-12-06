@@ -4,41 +4,38 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/connection');
 const { isValidPhone, sanitizeInput } = require('../utils/validation');
 
-// Mock verification codes storage (in memory for demo)
-// In production, use Redis
-const verificationCodes = new Map();
+// Import Email utility
+const { sendEmailCode, verifyEmailCode } = require('../utils/email');
 
 // Send verification code endpoint
 router.post('/send-code', async (req, res) => {
     try {
-        const { phone } = req.body;
+        const { email } = req.body;
 
-        // Validate phone
-        if (!phone || !isValidPhone(phone)) {
+        // Simple email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) {
             return res.status(400).json({
                 success: false,
-                message: '请输入有效的手机号'
+                message: '请输入有效的邮箱地址'
             });
         }
 
-        // Generate 6-digit code
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        // Use Email utility
+        const result = await sendEmailCode(email);
 
-        // Store code with expiration (5 minutes)
-        verificationCodes.set(phone, {
-            code,
-            expires: Date.now() + 5 * 60 * 1000
-        });
-
-        // In a real app, send SMS here
-        console.log(`[MOCK SMS] Code for ${phone}: ${code}`);
-
-        res.json({
-            success: true,
-            message: '验证码已发送',
-            // For dev convenience, return code in response (remove in production!)
-            debugCode: code
-        });
+        if (result.success) {
+            res.json({
+                success: true,
+                message: '验证码已发送至您的邮箱',
+                debugCode: result.code // For dev convenience
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: '邮件发送失败，请稍后重试'
+            });
+        }
 
     } catch (error) {
         console.error('Send code error:', error);
@@ -52,57 +49,40 @@ router.post('/send-code', async (req, res) => {
 // Verify login endpoint
 router.post('/verify-login', async (req, res) => {
     try {
-        const { phone, code } = req.body;
+        const { email, code } = req.body;
 
-        if (!phone || !code) {
+        if (!email || !code) {
             return res.status(400).json({
                 success: false,
-                message: '请输入手机号和验证码'
+                message: '请输入邮箱和验证码'
             });
         }
 
         // Verify code
-        const storedData = verificationCodes.get(phone);
-        if (!storedData) {
+        const isValid = verifyEmailCode(email, code);
+
+        if (!isValid) {
             return res.status(400).json({
                 success: false,
-                message: '验证码已失效，请重新获取'
+                message: '验证码错误或已失效'
             });
         }
 
-        if (Date.now() > storedData.expires) {
-            verificationCodes.delete(phone);
-            return res.status(400).json({
-                success: false,
-                message: '验证码已过期'
-            });
-        }
-
-        if (storedData.code !== code) {
-            return res.status(400).json({
-                success: false,
-                message: '验证码错误'
-            });
-        }
-
-        // Clear used code
-        verificationCodes.delete(phone);
-
-        // Check if user exists
+        // Check if user exists (by email)
         const [users] = await db.query(
-            'SELECT id, username, pen_type FROM users WHERE phone = ?',
-            [phone]
+            'SELECT id, username, pen_type FROM users WHERE email = ?',
+            [email]
         );
 
         let user;
         let isNewUser = false;
 
         if (users.length === 0) {
-            // Register new user
-            const username = `User_${phone.slice(-4)}`; // Generate default username
+            // Register new user with Email
+            const username = `User_${email.split('@')[0]}`;
             const [result] = await db.query(
-                'INSERT INTO users (phone, username) VALUES (?, ?)',
-                [phone, username]
+                'INSERT INTO users (email, username) VALUES (?, ?)',
+                [email, username]
             );
             user = {
                 id: result.insertId,
@@ -116,7 +96,7 @@ router.post('/verify-login', async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, phone: user.phone },
+            { userId: user.id, email: user.email },
             process.env.JWT_SECRET || 'secret_key',
             { expiresIn: '7d' }
         );
